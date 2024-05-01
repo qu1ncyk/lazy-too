@@ -37,6 +37,13 @@ function M.setup(spec, opts)
     opts.spec = spec
   end
 
+  -- Environment variable set by Nix code
+  if vim.env.LAZY_TOO == "lock" then
+    local lock = require("lazy.lock")
+    lock.write_lockfile(opts)
+    os.exit()
+  end
+
   M._start = M._start == 0 and vim.uv.hrtime() or M._start
   if vim.g.lazy_did_setup then
     return vim.notify(
