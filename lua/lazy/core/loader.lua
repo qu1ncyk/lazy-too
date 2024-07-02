@@ -77,11 +77,11 @@ function M.install_missing()
         end
       end
       Cache.reset()
-      require("lazy.manage").install({ wait = true, lockfile = true, clear = false })
       -- remove any installed plugins from indexed, so cache will index again
       for _, p in pairs(Config.plugins) do
         if p._.installed then
           Cache.reset(p.dir)
+          -- require("lazy.manage").install({ wait = true, lockfile = true, clear = false })
         end
       end
       -- reload plugins
@@ -105,6 +105,9 @@ function M.startup()
   -- 1. run plugin init
   Util.track({ start = "init" })
   for _, plugin in pairs(Config.plugins) do
+    -- Plugin was installed by Nix
+    plugin._.installed = true
+
     if plugin.init then
       Util.track({ plugin = plugin.name, init = "init" })
       Util.try(function()

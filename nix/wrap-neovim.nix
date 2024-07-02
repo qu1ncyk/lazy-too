@@ -48,7 +48,9 @@ in {
       # The wrapped Neovim that is used when prefetching the plugins
       neovim-prefetch = config.deps.wrapNeovim config.neovim {
         configure.packages = {
-          lazy.start = [(config.public.lazyPath {})];
+          lazy.start = [(config.public.lazyPath {
+            lazy.root = "${../.}";
+          })];
         };
       };
     }

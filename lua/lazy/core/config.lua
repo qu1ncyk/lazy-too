@@ -1,11 +1,12 @@
 local Util = require("lazy.core.util")
+local fromNix = require("lazy.from-nix")
 
 ---@class LazyCoreConfig
 local M = {}
 
 ---@class LazyConfig
 M.defaults = {
-  root = vim.fn.stdpath("data") .. "/lazy", -- directory where plugins will be installed
+  root = fromNix.lazy.root,
   defaults = {
     lazy = false, -- should plugins be lazy-loaded?
     version = nil,
