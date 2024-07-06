@@ -31,8 +31,13 @@ in {
     neovim = config.deps.wrapNeovim config.neovim {
       extraMakeWrapperArgs = "--add-flags -u --add-flags '${config.neovimConfigFile}'";
       configure.packages = {
-        lazy.start = [(config.public.lazyPath lazyData)];
+        lazy.start = [lazyPathWithHelptags.drv];
       };
+    };
+
+    lazyPathWithHelptags = config.public.generateHelptags {
+      drv = config.public.lazyPath lazyData;
+      name = "lazy-too";
     };
   in
     {
@@ -48,9 +53,11 @@ in {
       # The wrapped Neovim that is used when prefetching the plugins
       neovim-prefetch = config.deps.wrapNeovim config.neovim {
         configure.packages = {
-          lazy.start = [(config.public.lazyPath {
-            lazy.root = "${../.}";
-          })];
+          lazy.start = [
+            (config.public.lazyPath {
+              lazy.root = "${../.}";
+            })
+          ];
         };
       };
     }

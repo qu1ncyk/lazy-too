@@ -32,6 +32,7 @@ in {
       runCommand
       symlinkJoin
       writeShellScript
+      stdenvNoCC
       ;
     # All possible outputs of `nurl` (minus builtins.fetchGit)
     fetchers = {
@@ -55,7 +56,30 @@ in {
   };
 
   # The directory with all plugins
-  public.pluginDir = combineDrvs (map fetchPlugin config.lock.content.plugins);
+  public.pluginDir = combineDrvs (map
+    (p: config.public.generateHelptags (fetchPlugin p))
+    config.lock.content.plugins);
+
+  # Generate the Vim helptags for a given plugin.
+  public.generateHelptags = {
+    drv,
+    name,
+  }: {
+    inherit name;
+    drv = config.deps.stdenvNoCC.mkDerivation {
+      name = "${name} with helptags";
+      src = drv;
+      buildInputs = [config.public.neovim-prefetch];
+      buildPhase = ''
+        if [ -d doc ]; then
+          nvim --clean -c 'helptags doc' -c q
+        fi
+      '';
+      installPhase = "cp . $out -r";
+      # The default `fixupPhase` moves the `doc` dir into `share`
+      dontFixup = true;
+    };
+  };
 
   lock.fields = {
     plugins.script = config.deps.writeShellScript "prefetch plugins" ''
