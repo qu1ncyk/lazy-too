@@ -23,6 +23,8 @@
       "mkdir $out\n"
       + lib.strings.concatMapStrings linkDrvScript drvs
     );
+
+  attrsToList = lib.attrsets.mapAttrsToList (name: val: {inherit name;} // val);
 in {
   deps = {nixpkgs, ...}: {
     inherit
@@ -33,6 +35,7 @@ in {
       symlinkJoin
       writeShellScript
       stdenvNoCC
+      jq
       ;
     # All possible outputs of `nurl` (minus builtins.fetchGit)
     fetchers = {
@@ -58,7 +61,7 @@ in {
   # The directory with all plugins
   public.pluginDir = combineDrvs (map
     (p: config.public.generateHelptags (fetchPlugin p))
-    config.lock.content.plugins);
+    (attrsToList config.lock.content.plugins));
 
   # Generate the Vim helptags for a given plugin.
   public.generateHelptags = {
@@ -87,6 +90,10 @@ in {
       export PATH=${config.deps.nurl}/bin:$PATH
       export LAZY_TOO=lock
       ${config.public.neovim-prefetch}/bin/nvim -l '${config.neovimConfigFile}'
+
+      # Sort the keys to be more Git-friendly
+      ${config.deps.jq}/bin/jq --sort-keys . $out > tmp
+      mv tmp $out
     '';
   };
 }

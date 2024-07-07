@@ -25,7 +25,6 @@ local function prefetch_git(plugin)
       hash = parsed.hash,
       rev = parsed.rev,
     },
-    name = plugin.name,
   }
 end
 
@@ -39,8 +38,18 @@ local function prefetch(plugin)
     return prefetch_git(plugin)
   end
   local parsed = vim.json.decode(json) --[[@as FetchData]]
-  parsed.name = plugin.name
   return parsed
+end
+
+---@param plugins LazyPlugin[]
+---@return table<string, LazyPlugin>
+local function list_to_dict(plugins)
+  local dict = {}
+  for _, plugin in ipairs(plugins) do
+    dict[plugin.name] = plugin
+  end
+
+  return dict
 end
 
 ---Write a JSON object that will be used in the lockfile
@@ -55,9 +64,9 @@ function M.write_lockfile(opts)
   local plugins = Plugin.Spec.new(opts.spec, opts)
 
   local prefetched_plugins = {}
-  for i, plugin in ipairs(plugins.fragments) do
-    print("Prefetching", plugin.name, "from", plugin.url)
-    prefetched_plugins[i] = prefetch(plugin)
+  for name, plugin in pairs(list_to_dict(plugins.fragments)) do
+    print("Prefetching", name, "from", plugin.url)
+    prefetched_plugins[name] = prefetch(plugin)
   end
 
   file:write(vim.json.encode(prefetched_plugins))
