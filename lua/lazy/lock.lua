@@ -65,8 +65,12 @@ function M.write_lockfile(opts)
 
   local prefetched_plugins = {}
   for name, plugin in pairs(list_to_dict(plugins.fragments)) do
-    print("Prefetching", name, "from", plugin.url)
-    prefetched_plugins[name] = prefetch(plugin)
+    if plugin.url then
+      print("Prefetching", name, "from", plugin.url)
+      prefetched_plugins[name] = prefetch(plugin)
+    else
+      print("Skipping", name)
+    end
   end
 
   file:write(vim.json.encode(prefetched_plugins))
