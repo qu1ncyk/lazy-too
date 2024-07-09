@@ -8,6 +8,27 @@ local M = {}
 ---@field fetcher string
 ---@field args table<string, string>
 
+---Translate a call to `fetchgit` to a more specialized fetcher like
+---`fetchFromGitHub` or `fetchFromSourcehut`. Such specialized fetchers are
+---more performant as they only download an archive of the selected commit
+---instead of a larger part of the repo.
+---@param fetch_data FetchData
+local function translate_fetchgit(fetch_data)
+  if fetch_data.fetcher ~= "fetchgit" then
+    return fetch_data
+  end
+
+  local command = { "nurl", "-p", fetch_data.args.url, fetch_data.args.rev }
+  local lines = Process.exec(command)
+  local json = table.concat(lines)
+  if json == "" then
+    return fetch_data
+  end
+  local parsed = vim.json.decode(json) --[[@as FetchData]]
+  parsed.args.hash = fetch_data.args.hash
+  return parsed
+end
+
 ---Fetch the metadata and hash of the repo that hosts the plugin. This function
 ---is used if `prefetch` using `nurl` fails, for example due to
 ---`Error: fetchgit does not support fetching the latest revision`.
@@ -33,14 +54,14 @@ local function prefetch_git(plugin)
   local lines = Process.exec(command)
   local json = table.concat(lines)
   local parsed = vim.json.decode(json) --[[@as table<string, string>]]
-  return {
+  return translate_fetchgit({
     fetcher = "fetchgit",
     args = {
       url = parsed.url,
       hash = parsed.hash,
       rev = parsed.rev,
     },
-  }
+  })
 end
 
 ---Fetch the metadata and hash of the repo that hosts the plugin.
