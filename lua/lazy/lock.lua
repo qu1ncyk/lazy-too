@@ -7,7 +7,6 @@ local M = {}
 ---@class FetchData
 ---@field fetcher string
 ---@field args table<string, string>
----@field name string
 
 ---Fetch the metadata and hash of the repo that hosts the plugin. This function
 ---is used if `prefetch` using `nurl` fails, for example due to
@@ -15,7 +14,23 @@ local M = {}
 ---@param plugin LazyPlugin
 ---@return FetchData
 local function prefetch_git(plugin)
-  local lines = Process.exec({ "nix-prefetch-git", plugin.url })
+  local command = { "nix-prefetch-git", plugin.url }
+  if plugin.branch then
+    vim.list_extend(command, { "--branch-name", plugin.branch })
+  end
+
+  if plugin.submodules then
+    table.insert(command, "--fetch-submodules")
+  end
+
+  ---@todo support semantic versioning
+  if plugin.commit then
+    table.insert(command, plugin.commit)
+  elseif plugin.tag then
+    table.insert(command, plugin.tag)
+  end
+
+  local lines = Process.exec(command)
   local json = table.concat(lines)
   local parsed = vim.json.decode(json) --[[@as table<string, string>]]
   return {
@@ -32,9 +47,31 @@ end
 ---@param plugin LazyPlugin
 ---@return FetchData
 local function prefetch(plugin)
-  local lines = Process.exec({ "nurl", "-j", plugin.url })
+  local command = { "nurl", "-j", plugin.url }
+  if plugin.branch then
+    -- Not all fetchers support fetching the latest commit from a specific
+    -- branch
+    return prefetch_git(plugin)
+  end
+
+  if plugin.submodules then
+    table.insert(command, "--submodules=true")
+  else
+    table.insert(command, "--submodules=false")
+  end
+
+  if plugin.commit then
+    table.insert(command, plugin.commit)
+  elseif plugin.tag or plugin.version then
+    -- Tags don't get translated to commit hashes by nurl,
+    -- which makes them not reproducable
+    return prefetch_git(plugin)
+  end
+
+  local lines = Process.exec(command)
   local json = table.concat(lines)
   if json == "" then
+    -- Some error
     return prefetch_git(plugin)
   end
   local parsed = vim.json.decode(json) --[[@as FetchData]]
