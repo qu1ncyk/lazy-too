@@ -482,7 +482,7 @@ function M.update_state()
   ---@type table<string,FileType>
   local installed = {}
   Util.ls(Config.options.root, function(_, name, type)
-    if type == "directory" and name ~= "readme" then
+    if (type == "directory" or type == "link") and name ~= "readme" then
       installed[name] = type
     elseif type == "file" and name:sub(-8) == ".cloning" then
       name = name:sub(1, -9)

@@ -105,9 +105,6 @@ function M.startup()
   -- 1. run plugin init
   Util.track({ start = "init" })
   for _, plugin in pairs(Config.plugins) do
-    -- Plugin was installed by Nix
-    plugin._.installed = true
-
     if plugin.init then
       Util.track({ plugin = plugin.name, init = "init" })
       Util.try(function()
@@ -121,6 +118,9 @@ function M.startup()
   -- 2. load start plugin
   Util.track({ start = "start" })
   for _, plugin in ipairs(M.get_start_plugins()) do
+    if plugin.build then
+      print("The `build` property is not supported in Lazy-too (used in " .. plugin.name .. ")")
+    end
     -- plugin may be loaded by another plugin in the meantime
     if not plugin._.loaded then
       M.load(plugin, { start = "start" })
@@ -309,7 +309,7 @@ end
 ---@param opts? {force:boolean} when force is true, we skip the cond check
 function M._load(plugin, reason, opts)
   if not plugin._.installed then
-    return Util.error("Plugin " .. plugin.name .. " is not installed")
+    return Util.error("Plugin " .. plugin.name .. " is not installed. Have you re-generated the lockfile?")
   end
 
   if plugin._.cond == false and not (opts and opts.force) then
