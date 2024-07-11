@@ -72,10 +72,10 @@ in {
     drv = config.deps.stdenvNoCC.mkDerivation {
       name = "${name} with helptags";
       src = drv;
-      buildInputs = [config.public.neovim-prefetch];
+      buildInputs = [config.neovim];
       buildPhase = ''
         if [ -d doc ]; then
-          nvim --clean -c 'helptags doc' -c q
+          nvim --headless -i NONE -u NONE -c 'helptags doc|q'
         fi
       '';
       installPhase = "cp . $out -r";
