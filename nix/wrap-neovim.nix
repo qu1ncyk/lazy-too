@@ -17,7 +17,13 @@
     };
 
   # Runtime data for from-nix.lua
-  lazyData = {lazy.root = config.public.pluginDir;};
+  lazyData = {
+    lazy = {
+      root = config.public.pluginDir;
+    } // lib.attrsets.optionalAttrs (config.configRoot != null) {
+      config_root = "${config.configRoot}";
+    };
+  };
 in {
   imports = [
     ./plugin-dir.nix

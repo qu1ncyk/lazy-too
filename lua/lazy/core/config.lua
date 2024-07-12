@@ -236,13 +236,15 @@ function M.setup(opts)
   M.me = Util.norm(vim.fn.fnamemodify(M.me, ":p:h:h:h:h"))
   if M.options.performance.rtp.reset then
     vim.opt.rtp = {
-      vim.fn.stdpath("config"),
       vim.fn.stdpath("data") .. "/site",
       M.me,
       vim.env.VIMRUNTIME,
       vim.fn.fnamemodify(vim.v.progpath, ":p:h:h") .. "/lib/nvim",
-      vim.fn.stdpath("config") .. "/after",
     }
+    if fromNix.lazy.config_root then
+      vim.opt.rtp:prepend(fromNix.lazy.config_root)
+      vim.opt.rtp:append(fromNix.lazy.config_root .. "/after")
+    end
   end
   for _, path in ipairs(M.options.performance.rtp.paths) do
     vim.opt.rtp:append(path)
