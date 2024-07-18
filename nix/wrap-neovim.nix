@@ -3,7 +3,7 @@
   config,
   ...
 }: let
-  # A derivation with nix.lua, that contains data passed fron Nix to Lua
+  # A derivation with from-nix.lua, that contains data passed fron Nix to Lua
   passToLua = data: let
     finalData =
       lib.attrsets.recursiveUpdate
@@ -18,11 +18,12 @@
 
   # Runtime data for from-nix.lua
   lazyData = {
-    lazy = {
-      root = config.public.pluginDir;
-    } // lib.attrsets.optionalAttrs (config.configRoot != null) {
-      config_root = "${config.configRoot}";
-    };
+    lazy = {root = config.public.pluginDir;} // configRootPathData;
+  };
+
+  # The entry in from-nix.lua that contains the config root directory
+  configRootPathData = lib.attrsets.optionalAttrs (config.configRoot != null) {
+    config_root = "${config.configRoot}";
   };
 in {
   imports = [
@@ -43,6 +44,11 @@ in {
 
     configRootPlugin = lib.attrsets.optionalAttrs (config.configRoot != null) {
       lua.start = [(toDerivation config.configRoot)];
+    };
+
+    emptyDerivation = config.deps.symlinkJoin {
+      name = "empty";
+      paths = [];
     };
 
     # A custom implementation of `lib.attrsets.toDerivation` that doesn't use
@@ -74,7 +80,7 @@ in {
           {
             lazy.start = [
               (config.public.lazyPath {
-                lazy.root = "${../.}";
+                lazy = {root = emptyDerivation;} // configRootPathData;
               })
             ];
           }

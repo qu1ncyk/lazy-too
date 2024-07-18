@@ -118,6 +118,10 @@ function M.write_lockfile(opts)
     error("Failed to open $out (" .. vim.env.out .. ")")
   end
 
+  if type(opts.spec) == "string" then
+    opts.spec = { import = opts.spec }
+  end
+
   Config.setup(opts)
   local plugins = Plugin.Spec.new(opts.spec, opts)
 
