@@ -25,26 +25,45 @@
   configRootPathData = lib.attrsets.optionalAttrs (config.configRoot != null) {
     config_root = "${config.configRoot}";
   };
+
+  wrapNeovim = {
+    neovim,
+    args ? [],
+    packPath ? [],
+  }:
+    if packPath != []
+    then
+      wrapNeovim {
+        inherit neovim;
+        args =
+          builtins.concatMap
+          (x: ["--cmd" "'set rtp^='${lib.strings.escapeShellArg x}"])
+          packPath
+          ++ args;
+      }
+    else let
+      flatArgs = lib.strings.concatStringsSep " " args;
+    in
+      config.deps.writeShellScriptBin "nvim" ''
+        exec ${neovim}/bin/nvim ${flatArgs} $@
+      '';
 in {
   imports = [
     ./plugin-dir.nix
     ./interface.nix
   ];
 
-  deps = {nixpkgs, ...}: {inherit (nixpkgs) wrapNeovim writeTextFile;};
+  deps = {nixpkgs, ...}: {inherit (nixpkgs) writeTextFile writeShellScriptBin;};
 
   public = let
     # The wrapped Neovim
-    neovim = config.deps.wrapNeovim config.neovim {
-      extraMakeWrapperArgs = "--add-flags -u --add-flags '${config.neovimConfigFile}'";
-      configure.packages =
-        {lazy.start = [lazyPathWithHelptags.drv];}
-        // configRootPlugin;
+    neovim = wrapNeovim {
+      inherit (config) neovim;
+      args = ["-u" "${config.neovimConfigFile}"];
+      packPath = [lazyPathWithHelptags.drv] ++ configRootList;
     };
 
-    configRootPlugin = lib.attrsets.optionalAttrs (config.configRoot != null) {
-      lua.start = [(toDerivation config.configRoot)];
-    };
+    configRootList = lib.lists.optional (config.configRoot != null) (toDerivation config.configRoot);
 
     emptyDerivation = config.deps.symlinkJoin {
       name = "empty";
@@ -75,16 +94,15 @@ in {
       inherit neovim;
 
       # The wrapped Neovim that is used when prefetching the plugins
-      neovim-prefetch = config.deps.wrapNeovim config.neovim {
-        configure.packages =
-          {
-            lazy.start = [
-              (config.public.lazyPath {
-                lazy = {root = emptyDerivation;} // configRootPathData;
-              })
-            ];
-          }
-          // configRootPlugin;
+      neovim-prefetch = wrapNeovim {
+        inherit (config) neovim;
+        packPath =
+          [
+            (config.public.lazyPath {
+              lazy = {root = emptyDerivation;} // configRootPathData;
+            })
+          ]
+          ++ configRootList;
       };
     }
     // neovim;
