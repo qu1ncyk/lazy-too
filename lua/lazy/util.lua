@@ -73,28 +73,24 @@ end
 ---@param fn F
 ---@return F
 function M.throttle(ms, fn)
-  local timer = vim.uv.new_timer()
-  local running = false
-  local first = true
+  ---@type Async
+  local async
+  local pending = false
 
-  return function(...)
-    local args = { ... }
-    local wrapped = function()
-      fn(unpack(args))
+  return function()
+    if async and async:running() then
+      pending = true
+      return
     end
-    if not running then
-      if first then
-        wrapped()
-        first = false
-      end
+    ---@async
+    async = require("lazy.async").new(function()
+      repeat
+        pending = false
+        fn()
+        async:sleep(ms)
 
-      timer:start(ms, 0, function()
-        running = false
-        vim.schedule(wrapped)
-      end)
-
-      running = true
-    end
+      until not pending
+    end)
   end
 end
 
@@ -166,12 +162,21 @@ end
 ---@param opts? LazyCmdOptions|{filetype?:string}
 function M.float_cmd(cmd, opts)
   opts = opts or {}
+  local Process = require("lazy.manage.process")
+  local lines, code = Process.exec(cmd, { cwd = opts.cwd })
+  if code ~= 0 then
+    M.error({
+      "`" .. table.concat(cmd, " ") .. "`",
+      "",
+      "## Error",
+      table.concat(lines, "\n"),
+    }, { title = "Command Failed (" .. code .. ")" })
+    return
+  end
   local float = M.float(opts)
   if opts.filetype then
     vim.bo[float.buf].filetype = opts.filetype
   end
-  local Process = require("lazy.manage.process")
-  local lines = Process.exec(cmd, { cwd = opts.cwd })
   vim.api.nvim_buf_set_lines(float.buf, 0, -1, false, lines)
   vim.bo[float.buf].modifiable = false
   return float
@@ -237,20 +242,25 @@ function M._dump(value, result)
     table.insert(result, tostring(value))
   elseif t == "string" then
     table.insert(result, ("%q"):format(value))
+  elseif t == "table" and value._raw then
+    table.insert(result, value._raw)
   elseif t == "table" then
     table.insert(result, "{")
-    local i = 1
-    ---@diagnostic disable-next-line: no-unknown
-    for k, v in pairs(value) do
-      if k == i then
-      elseif type(k) == "string" then
-        table.insert(result, ("[%q]="):format(k))
-      else
-        table.insert(result, k .. "=")
-      end
+    for _, v in ipairs(value) do
       M._dump(v, result)
       table.insert(result, ",")
-      i = i + 1
+    end
+    ---@diagnostic disable-next-line: no-unknown
+    for k, v in pairs(value) do
+      if type(k) == "string" then
+        if k:match("^[a-zA-Z]+$") then
+          table.insert(result, ("%s="):format(k))
+        else
+          table.insert(result, ("[%q]="):format(k))
+        end
+        M._dump(v, result)
+        table.insert(result, ",")
+      end
     end
     table.insert(result, "}")
   else

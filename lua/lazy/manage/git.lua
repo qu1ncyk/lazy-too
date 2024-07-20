@@ -116,6 +116,12 @@ end
 ---@param plugin LazyPlugin
 ---@return GitInfo?
 function M.get_target(plugin)
+  if plugin._.is_local then
+    local info = M.info(plugin.dir)
+    local branch = assert(info and info.branch or M.get_branch(plugin))
+    return { branch = branch, commit = M.get_commit(plugin.dir, branch, true) }
+  end
+
   local branch = assert(M.get_branch(plugin))
 
   if plugin.commit then
@@ -144,7 +150,6 @@ function M.get_target(plugin)
       }
     end
   end
-  ---@diagnostic disable-next-line: return-type-mismatch
   return { branch = branch, commit = M.get_commit(plugin.dir, branch, true) }
 end
 
@@ -184,7 +189,12 @@ function M.get_tag_refs(repo, tagref)
   tagref = tagref or "--tags"
   ---@type table<string,string>
   local tags = {}
-  local lines = Process.exec({ "git", "show-ref", "-d", tagref }, { cwd = repo })
+  local ok, lines = pcall(function()
+    return Process.exec({ "git", "show-ref", "-d", tagref }, { cwd = repo })
+  end)
+  if not ok then
+    return {}
+  end
   for _, line in ipairs(lines) do
     local ref, tag = line:match("^(%w+) refs/tags/([^%^]+)%^?{?}?$")
     if ref then

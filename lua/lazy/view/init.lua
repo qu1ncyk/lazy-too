@@ -67,7 +67,10 @@ function M.create()
   self.state = vim.deepcopy(default_state)
 
   self.render = Render.new(self)
-  self.update = Util.throttle(Config.options.ui.throttle, self.update)
+  local update = self.update
+  self.update = Util.throttle(Config.options.ui.throttle, function()
+    update(self)
+  end)
 
   for _, pattern in ipairs({ "LazyRender", "LazyFloatResized" }) do
     self:on({ "User" }, function()
@@ -80,8 +83,11 @@ function M.create()
 
   vim.keymap.set("n", ViewConfig.keys.abort, function()
     require("lazy.manage.process").abort()
+    require("lazy.async").abort()
     return ViewConfig.keys.abort
-  end, { silent = true, buffer = self.buf, expr = true })
+  end, { silent = true, buffer = self.buf, expr = true, desc = "Abort" })
+
+  vim.keymap.set("n", "gx", "K", { buffer = self.buf, remap = true })
 
   -- plugin details
   self:on_key(ViewConfig.keys.details, function()
@@ -91,17 +97,49 @@ function M.create()
         name = plugin.name,
         kind = plugin._.kind,
       }
-      self.state.plugin = not vim.deep_equal(self.state.plugin, selected) and selected or nil
+
+      local open = not vim.deep_equal(self.state.plugin, selected)
+
+      if not open then
+        local row = self.render:get_row(selected)
+        if row then
+          vim.api.nvim_win_set_cursor(self.view.win, { row, 8 })
+        end
+      end
+
+      self.state.plugin = open and selected or nil
       self:update()
     end
-  end)
+  end, "Details")
+
+  self:on_key(ViewConfig.keys.next, function()
+    local cursor = vim.api.nvim_win_get_cursor(self.view.win)
+    for l = 1, #self.render.locations, 1 do
+      local loc = self.render.locations[l]
+      if loc.from > cursor[1] then
+        vim.api.nvim_win_set_cursor(self.view.win, { loc.from, 8 })
+        return
+      end
+    end
+  end, "Next Plugin")
+
+  self:on_key(ViewConfig.keys.prev, function()
+    local cursor = vim.api.nvim_win_get_cursor(self.view.win)
+    for l = #self.render.locations, 1, -1 do
+      local loc = self.render.locations[l]
+      if loc.from < cursor[1] then
+        vim.api.nvim_win_set_cursor(self.view.win, { loc.from, 8 })
+        return
+      end
+    end
+  end, "Prev Plugin")
 
   self:on_key(ViewConfig.keys.profile_sort, function()
     if self.state.mode == "profile" then
       self.state.profile.sort_time_taken = not self.state.profile.sort_time_taken
       self:update()
     end
-  end)
+  end, "Sort Profile")
 
   self:on_key(ViewConfig.keys.profile_filter, function()
     if self.state.mode == "profile" then
@@ -121,17 +159,18 @@ function M.create()
         end
       end)
     end
-  end)
+  end, "Filter Profile")
 
   for lhs, rhs in pairs(Config.options.ui.custom_keys) do
     if rhs then
       local handler = type(rhs) == "table" and rhs[1] or rhs
+      local desc = type(rhs) == "table" and rhs.desc or nil
       self:on_key(lhs, function()
         local plugin = self.render:get_plugin()
         if plugin then
           handler(plugin)
         end
-      end)
+      end, desc)
     end
   end
 
@@ -142,9 +181,7 @@ end
 
 function M:update()
   if self.buf and vim.api.nvim_buf_is_valid(self.buf) then
-    vim.bo[self.buf].modifiable = true
     self.render:update()
-    vim.bo[self.buf].modifiable = false
     vim.cmd.redraw()
   end
 end
@@ -183,17 +220,17 @@ function M:setup_patterns()
     ["(https?://%S+)"] = function(url)
       Util.open(url)
     end,
-  }, self.hover)
+  }, self.hover, "Hover")
   self:on_pattern(ViewConfig.keys.diff, {
     [commit_pattern] = function(hash)
       self:diff({ commit = hash })
     end,
-  }, self.diff)
+  }, self.diff, "Diff")
   self:on_pattern(ViewConfig.commands.restore.key_plugin, {
     [commit_pattern] = function(hash)
       self:restore({ commit = hash })
     end,
-  }, self.restore)
+  }, self.restore, "Restore")
 end
 
 ---@param opts? {commit:string}
@@ -211,13 +248,13 @@ function M:restore(opts)
 end
 
 function M:hover()
-  if self:diff({ browser = true }) then
+  if self:diff({ browser = true, hover = true }) then
     return
   end
   self:open_url("")
 end
 
----@param opts? {commit?:string, browser:boolean}
+---@param opts? {commit?:string, browser:boolean, hover:boolean}
 function M:diff(opts)
   opts = opts or {}
   local plugin = self.render:get_plugin()
@@ -231,6 +268,9 @@ function M:diff(opts)
       local info = assert(Git.info(plugin.dir))
       local target = assert(Git.get_target(plugin))
       diff = { from = info.commit, to = target.commit }
+      if opts.hover and diff.from == diff.to then
+        return
+      end
     end
 
     if not diff then
@@ -255,7 +295,8 @@ end
 ---@param key string
 ---@param patterns table<string, fun(str:string)>
 ---@param fallback? fun(self)
-function M:on_pattern(key, patterns, fallback)
+---@param desc? string
+function M:on_pattern(key, patterns, fallback, desc)
   self:on_key(key, function()
     local line = vim.api.nvim_get_current_line()
     local pos = vim.api.nvim_win_get_cursor(0)
@@ -277,7 +318,7 @@ function M:on_pattern(key, patterns, fallback)
     if fallback then
       fallback(self)
     end
-  end)
+  end, desc)
 end
 
 function M:setup_modes()
@@ -294,11 +335,28 @@ function M:setup_modes()
     end
     if m.key_plugin and name ~= "restore" then
       self:on_key(m.key_plugin, function()
-        local plugin = self.render:get_plugin()
-        if plugin then
-          Commands.cmd(name, { plugins = { plugin } })
+        local esc = vim.api.nvim_replace_termcodes("<esc>", true, true, true)
+        vim.api.nvim_feedkeys(esc, "n", false)
+        local plugins = {}
+        if vim.api.nvim_get_mode().mode:lower() == "v" then
+          local f, t = vim.fn.line("."), vim.fn.line("v")
+          if f > t then
+            f, t = t, f
+          end
+          for i = f, t do
+            local plugin = self.render:get_plugin(i)
+            if plugin then
+              plugins[plugin.name] = plugin
+            end
+          end
+          plugins = vim.tbl_values(plugins)
+        else
+          plugins[1] = self.render:get_plugin()
         end
-      end, m.desc_plugin)
+        if #plugins > 0 then
+          Commands.cmd(name, { plugins = plugins })
+        end
+      end, m.desc_plugin, { "n", "x" })
     end
   end
 end

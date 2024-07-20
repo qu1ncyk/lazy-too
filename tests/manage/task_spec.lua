@@ -1,96 +1,82 @@
 --# selene:allow(incorrect_standard_library_use)
+local Async = require("lazy.async")
 local Task = require("lazy.manage.task")
 
 describe("task", function()
   local plugin = { name = "test", _ = {} }
 
-  local done = false
-  ---@type string?
-  local error
+  ---@type {done?:boolean, error:string?}
+  local task_result = {}
 
   local opts = {
+    ---@param task LazyTask
     on_done = function(task)
-      done = true
-      error = task.error
+      task_result = { done = true, error = task.error }
     end,
   }
 
   before_each(function()
-    done = false
-    error = nil
+    task_result = {}
   end)
 
   it("simple function", function()
     local task = Task.new(plugin, "test", function() end, opts)
-    assert(not task:has_started())
-    assert(not task:is_running())
-    task:start()
-    assert(not task:is_running())
-    assert(task:is_done())
-    assert(done)
+    assert(task:running())
+    task:wait()
+    assert(not task:running())
+    assert(task_result.done)
   end)
 
   it("detects errors", function()
     local task = Task.new(plugin, "test", function()
       error("test")
     end, opts)
-    assert(not task:has_started())
-    assert(not task:is_running())
-    task:start()
-    assert(task:is_done())
-    assert(not task:is_running())
-    assert(done)
-    assert(error)
-    assert(task.error and task.error:find("test"))
+    assert(task:running())
+    task:wait()
+    assert(not task:running())
+    assert(task_result.done)
+    assert(task_result.error)
+    assert(task:has_errors() and task:output(vim.log.levels.ERROR):find("test"))
   end)
 
-  it("schedule", function()
-    local running = false
-    local task = Task.new(plugin, "test", function(task)
-      running = true
-      task:schedule(function()
-        running = false
-      end)
+  it("async", function()
+    local running = true
+    ---@async
+    local task = Task.new(plugin, "test", function()
+      Async.yield()
+      running = false
     end, opts)
-    assert(not task:is_running())
-    assert(not task:has_started())
-    task:start()
+    assert(task:running())
     assert(running)
-    assert(#task._running == 1)
-    assert(task:is_running())
-    assert(not task:is_done())
+    assert(task:running())
     task:wait()
-    assert(task:is_done())
-    assert(not task:is_running())
-    assert(done)
-    assert(not task.error)
+    assert(not running)
+    assert(not task:running())
+    assert(task_result.done)
+    assert(not task:has_errors())
   end)
 
   it("spawn errors", function()
-    local task = Task.new(plugin, "test", function(task)
+    local task = Task.new(plugin, "spawn_errors", function(task)
       task:spawn("foobar")
     end, opts)
-    assert(not task:is_running())
-    task:start()
-    assert(not task:is_running())
-    assert(done)
-    assert(task.error and task.error:find("Failed to spawn"))
+    assert(task:running())
+    task:wait()
+    assert(not task:running())
+    assert(task_result.done)
+    assert(task:has_errors() and task:output(vim.log.levels.ERROR):find("Failed to spawn"), task:output())
   end)
 
   it("spawn", function()
     local task = Task.new(plugin, "test", function(task)
       task:spawn("echo", { args = { "foo" } })
     end, opts)
-    assert(not task:is_running())
-    assert(not task:has_started())
-    task:start()
-    assert(task:has_started())
-    assert(task:is_running())
+    assert(task:running())
+    assert(task:running())
     task:wait()
-    assert(task:is_done())
-    assert.same(task.output, "foo\n")
-    assert(done)
-    assert(not task.error)
+    assert.same(task:output(), "foo")
+    assert(task_result.done)
+    assert(not task:has_errors())
   end)
 
   it("spawn 2x", function()
@@ -98,12 +84,11 @@ describe("task", function()
       task:spawn("echo", { args = { "foo" } })
       task:spawn("echo", { args = { "bar" } })
     end, opts)
-    assert(not task:is_running())
-    task:start()
-    assert(task:is_running())
+    assert(task:running())
+    assert(task:running())
     task:wait()
-    assert(task.output == "foo\nbar\n" or task.output == "bar\nfoo\n")
-    assert(done)
-    assert(not task.error)
+    assert(task:output() == "foo\nbar" or task:output() == "bar\nfoo", task:output())
+    assert(task_result.done)
+    assert(not task:has_errors())
   end)
 end)

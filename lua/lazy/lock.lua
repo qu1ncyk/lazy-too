@@ -8,6 +8,24 @@ local M = {}
 ---@field fetcher string
 ---@field args table<string, string>
 
+---Run a command and return only the `stdout` (discard `stderr`).
+---@param command string[] | string
+---@return string
+local function exec_stdout(command)
+  local total_data = ""
+
+  ---@param data string
+  ---@param is_stderr? boolean
+  local function on_data(data, is_stderr)
+    if not is_stderr then
+      total_data = total_data .. data
+    end
+  end
+
+  Process.exec(command, { on_data = on_data, args = {} })
+  return total_data
+end
+
 ---Translate a call to `fetchgit` to a more specialized fetcher like
 ---`fetchFromGitHub` or `fetchFromSourcehut`. Such specialized fetchers are
 ---more performant as they only download an archive of the selected commit
@@ -19,8 +37,7 @@ local function translate_fetchgit(fetch_data)
   end
 
   local command = { "nurl", "-p", fetch_data.args.url, fetch_data.args.rev }
-  local lines = Process.exec(command)
-  local json = table.concat(lines)
+  local json = exec_stdout(command)
   if json == "" then
     return fetch_data
   end
@@ -51,9 +68,9 @@ local function prefetch_git(plugin)
     table.insert(command, plugin.tag)
   end
 
-  local lines = Process.exec(command)
-  local json = table.concat(lines)
+  local json = exec_stdout(command)
   local parsed = vim.json.decode(json) --[[@as table<string, string>]]
+
   return translate_fetchgit({
     fetcher = "fetchgit",
     args = {
@@ -91,23 +108,12 @@ local function prefetch(plugin)
 
   local lines = Process.exec(command)
   local json = table.concat(lines)
-  if json == "" then
-    -- Some error
+  local success, parsed = pcall(vim.json.decode, json)
+
+  if not success then
     return prefetch_git(plugin)
   end
-  local parsed = vim.json.decode(json) --[[@as FetchData]]
   return parsed
-end
-
----@param plugins LazyPlugin[]
----@return table<string, LazyPlugin>
-local function list_to_dict(plugins)
-  local dict = {}
-  for _, plugin in ipairs(plugins) do
-    dict[plugin.name] = plugin
-  end
-
-  return dict
 end
 
 ---Write a JSON object that will be used in the lockfile
@@ -126,7 +132,7 @@ function M.write_lockfile(opts)
   local plugins = Plugin.Spec.new(opts.spec, opts)
 
   local prefetched_plugins = {}
-  for name, plugin in pairs(list_to_dict(plugins.fragments)) do
+  for name, plugin in pairs(plugins.meta.plugins) do
     if plugin.url then
       print("Prefetching", name, "from", plugin.url)
       prefetched_plugins[name] = prefetch(plugin)

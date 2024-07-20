@@ -1,3 +1,4 @@
+local Async = require("lazy.async")
 local Runner = require("lazy.manage.runner")
 
 describe("runner", function()
@@ -30,11 +31,11 @@ describe("runner", function()
       end,
     }
     package.loaded["lazy.manage.task.test"]["async" .. i] = {
+      ---@async
       ---@param task LazyTask
       run = function(task)
-        task:schedule(function()
-          table.insert(runs, { plugin = task.plugin.name, task = task.name })
-        end)
+        Async.yield()
+        table.insert(runs, { plugin = task.plugin.name, task = task.name })
       end,
     }
   end
@@ -64,7 +65,7 @@ describe("runner", function()
     local runner = Runner.new({ plugins = plugins, pipeline = { "test.test1", "test.skip", "test.test2" } })
     runner:start()
     runner:wait()
-    assert.equal(4, #runs)
+    assert.equal(4, #runs, runs)
   end)
 
   it("handles opts", function()

@@ -5,6 +5,7 @@ local M = {}
 
 ---@type LazyProfile[]
 M._profiles = { { name = "lazy" } }
+M.is_win = jit.os:find("Windows")
 
 ---@param data (string|{[string]:string})?
 ---@param time number?
@@ -28,6 +29,24 @@ function M.track(data, time)
   end
 end
 
+function M.exiting()
+  return vim.v.exiting ~= vim.NIL
+end
+
+---@generic T
+---@param list T[]
+---@param fn fun(v: T):boolean?
+---@return T[]
+function M.filter(fn, list)
+  local ret = {}
+  for _, v in ipairs(list) do
+    if fn(v) then
+      table.insert(ret, v)
+    end
+  end
+  return ret
+end
+
 ---@generic F: fun()
 ---@param data (string|{[string]:string})?
 ---@param fn F
@@ -47,7 +66,7 @@ end
 ---@param name string
 ---@return string
 function M.normname(name)
-  local ret = name:lower():gsub("^n?vim%-", ""):gsub("%.n?vim$", ""):gsub("%.lua", ""):gsub("[^a-z]+", "")
+  local ret = name:lower():gsub("^n?vim%-", ""):gsub("%.n?vim$", ""):gsub("[%.%-]lua", ""):gsub("[^a-z]+", "")
   return ret
 end
 
@@ -92,7 +111,10 @@ function M.pretty_trace(opts)
   return #trace > 0 and ("\n\n# stacktrace:\n" .. table.concat(trace, "\n")) or ""
 end
 
+---@generic R
+---@param fn fun():R?
 ---@param opts? string|{msg:string, on_error:fun(msg)}
+---@return R
 function M.try(fn, opts)
   opts = type(opts) == "string" and { msg = opts } or opts or {}
   local msg = opts.msg
@@ -149,7 +171,9 @@ function M.very_lazy()
         return
       end
       vim.g.did_very_lazy = true
+      M.track({ event = "VeryLazy" })
       vim.api.nvim_exec_autocmds("User", { pattern = "VeryLazy", modeline = false })
+      M.track()
     end)
   end
 
@@ -221,18 +245,33 @@ function M.walkmods(root, fn, modname)
 end
 
 ---@param modname string
-function M.get_unloaded_rtp(modname)
-  modname = modname:gsub("/", ".")
-  local idx = modname:find(".", 1, true)
-  local topmod = idx and modname:sub(1, idx - 1) or modname
-  topmod = M.normname(topmod)
+---@return string
+function M.topmod(modname)
+  return modname:match("^[^./]+") or modname
+end
 
+---@type table<string, string[]>
+M.unloaded_cache = {}
+
+---@param modname string
+---@param opts? {cache?:boolean}
+function M.get_unloaded_rtp(modname, opts)
+  opts = opts or {}
+
+  local topmod = M.topmod(modname)
+  if opts.cache and M.unloaded_cache[topmod] then
+    return M.unloaded_cache[topmod], true
+  end
+
+  local norm = M.normname(topmod)
+
+  ---@type string[]
   local rtp = {}
   local Config = require("lazy.core.config")
   if Config.spec then
     for _, plugin in pairs(Config.spec.plugins) do
       if not (plugin._.loaded or plugin.module == false) then
-        if topmod == M.normname(plugin.name) then
+        if norm == M.normname(plugin.name) then
           table.insert(rtp, 1, plugin.dir)
         else
           table.insert(rtp, plugin.dir)
@@ -240,31 +279,45 @@ function M.get_unloaded_rtp(modname)
       end
     end
   end
-  return rtp
+  M.unloaded_cache[topmod] = rtp
+  return rtp, false
 end
 
 function M.find_root(modname)
+  local paths, cached = M.get_unloaded_rtp(modname, { cache = true })
+
   local ret = require("lazy.core.cache").find(modname, {
     rtp = true,
-    paths = M.get_unloaded_rtp(modname),
-    patterns = { "", ".lua" },
+    paths = paths,
+    patterns = { ".lua", "" },
   })[1]
+
+  if not ret and cached then
+    paths = M.get_unloaded_rtp(modname)
+    ret = require("lazy.core.cache").find(modname, {
+      rtp = false,
+      paths = paths,
+      patterns = { ".lua", "" },
+    })[1]
+  end
   if ret then
-    local root = ret.modpath:gsub("/init%.lua$", ""):gsub("%.lua$", "")
-    return root
+    return ret.modpath:gsub("%.lua$", ""), ret.modpath
   end
 end
 
 ---@param modname string
 ---@param fn fun(modname:string, modpath:string)
 function M.lsmod(modname, fn)
-  local root = M.find_root(modname)
+  local root, match = M.find_root(modname)
   if not root then
     return
   end
 
-  if vim.uv.fs_stat(root .. ".lua") then
-    fn(modname, root .. ".lua")
+  if match:sub(-4) == ".lua" then
+    fn(modname, match)
+    if not vim.uv.fs_stat(root) then
+      return
+    end
   end
 
   M.ls(root, function(path, name, type)
@@ -426,6 +479,37 @@ function M.lazy_require(module)
         return mod[key]
       end,
     })
+end
+
+---@param t table
+---@param key string|string[]
+---@return any
+function M.key_get(t, key)
+  local path = type(key) == "table" and key or vim.split(key, ".", true)
+  local value = t
+  for _, k in ipairs(path) do
+    if type(value) ~= "table" then
+      return value
+    end
+    value = value[k]
+  end
+  return value
+end
+
+---@param t table
+---@param key string|string[]
+---@param value any
+function M.key_set(t, key, value)
+  local path = type(key) == "table" and key or vim.split(key, ".", true)
+  local last = t
+  for i = 1, #path - 1 do
+    local k = path[i]
+    if type(last[k]) ~= "table" then
+      last[k] = {}
+    end
+    last = last[k]
+  end
+  last[path[#path]] = value
 end
 
 return M

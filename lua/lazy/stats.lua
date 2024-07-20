@@ -6,7 +6,7 @@ local M = {}
 M._stats = {
   -- startuptime in milliseconds till UIEnter
   startuptime = 0,
-  -- when true, startuptime is the accurate cputime for the Neovim process. (Linux & Macos)
+  -- when true, startuptime is the accurate cputime for the Neovim process. (Linux & macOS)
   -- this is more accurate than `nvim --startuptime`, and as such will be slightly higher
   -- when false, startuptime is calculated based on a delta with a timestamp when lazy started.
   real_cputime = false,
@@ -21,6 +21,7 @@ M.C = nil
 
 function M.on_ui_enter()
   M._stats.startuptime = M.track("UIEnter")
+  require("lazy.core.util").track({ start = "startuptime" }, M._stats.startuptime * 1e6)
   vim.api.nvim_exec_autocmds("User", { pattern = "LazyVimStarted", modeline = false })
 end
 

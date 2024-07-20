@@ -34,6 +34,21 @@ M.commands = {
   health = function()
     vim.cmd.checkhealth("lazy")
   end,
+  ---@param opts ManagerOpts
+  pkg = function(opts)
+    local Pkg = require("lazy.pkg")
+    Pkg.update()
+    require("lazy.manage.reloader").reload({
+      {
+        file = "pkg",
+        what = "changed",
+      },
+    })
+    for _, plugin in pairs(opts and opts.plugins or {}) do
+      local spec = Pkg.get(plugin.dir)
+      Util.info(vim.inspect(spec), { lang = "lua", title = plugin.name })
+    end
+  end,
   home = function()
     View.show("home")
   end,
@@ -56,6 +71,9 @@ M.commands = {
   end,
   reload = function(opts)
     for _, plugin in pairs(opts.plugins) do
+      if type(plugin) == "string" then
+        plugin = Config.plugins[plugin]
+      end
       Util.warn("Reloading **" .. plugin.name .. "**")
       require("lazy.core.loader").reload(plugin)
     end
@@ -71,7 +89,7 @@ M.commands = {
 }
 
 function M.complete(cmd, prefix)
-  if not (ViewConfig.commands[cmd] or {}).plugins then
+  if not (ViewConfig.commands[cmd] or {}).plugins and cmd ~= "pkg" then
     return
   end
   ---@type string[]
