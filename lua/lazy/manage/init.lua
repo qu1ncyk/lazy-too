@@ -243,4 +243,24 @@ function M.clear(plugins)
   vim.api.nvim_exec_autocmds("User", { pattern = "LazyRender", modeline = false })
 end
 
+---Prefetch all plugins and return their fetch data.
+---@param opts? ManagerOpts
+---@return table<string, FetchData>
+function M.prefetch(opts)
+  local out = {}
+
+  opts = M.opts(opts, {
+    mode = "prefetch",
+    clear = false,
+    plugins = Config.plugins,
+  })
+  M.run({
+    pipeline = {
+      { "prefetch.prefetch", out = out },
+    },
+  }, opts):wait()
+
+  return out
+end
+
 return M
