@@ -256,6 +256,7 @@ function M.prefetch(opts)
   })
   M.run({
     pipeline = {
+      "prefetch.version",
       { "prefetch.prefetch", out = out },
     },
   }, opts):wait()

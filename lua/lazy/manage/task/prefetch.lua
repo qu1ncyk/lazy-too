@@ -1,4 +1,6 @@
+local Config = require("lazy.core.config")
 local Process = require("lazy.manage.process")
+local Semver = require("lazy.manage.semver")
 
 ---@type table<string, LazyTaskDef>
 local M = {}
@@ -127,6 +129,61 @@ M.prefetch = {
   run = function(self, opts)
     local plugin = self.plugin
     opts.out[plugin.name] = prefetch(plugin)
+  end,
+}
+
+---Fetch all version numbers of a given git repo.
+---@param repo_url string
+---@return TaggedSemver[]
+local function fetch_versions(repo_url)
+  local out = {}
+
+  -- From `man git-ls-remote`:
+  -- > The output is in the format:
+  -- >
+  -- >     <oid> TAB <ref> LF
+  local tag_lines = Process.exec({ "git", "ls-remote", "--tags", repo_url })
+  for _, line in ipairs(tag_lines) do
+    local version_str = line:gsub(".*refs/tags/", "")
+
+    local version = Semver.version(version_str)
+    if version then
+      ---@cast version TaggedSemver
+      version.tag = version_str
+      table.insert(out, version)
+    end
+  end
+
+  return out
+end
+
+M.version = {
+  skip = function(plugin)
+    if plugin.tag or plugin.commit then
+      return true
+    end
+    local version = (plugin.version == nil and plugin.branch == nil) and Config.options.defaults.version
+      or plugin.version
+    return not version
+  end,
+
+  ---For plugins with `version` set, use the latest matching tag.
+  run = function(self)
+    local version = (self.plugin.version == nil and self.plugin.branch == nil) and Config.options.defaults.version
+      or self.plugin.version
+
+    local versions = fetch_versions(self.plugin.url)
+    local range = Semver.range(version)
+
+    ---@param version TaggedSemver
+    local matches = vim.tbl_filter(function(version)
+      return range:matches(version)
+    end, versions)
+
+    local latest_version = Semver.last(matches)
+    if latest_version then
+      self.plugin.tag = latest_version.tag
+    end
   end,
 }
 
