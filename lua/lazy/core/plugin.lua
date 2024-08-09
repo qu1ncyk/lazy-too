@@ -314,20 +314,8 @@ function M.load()
     vim.deepcopy(Config.options.spec),
   }
   specs[#specs + 1] = M.find_local_spec()
-  specs[#specs + 1] = { "folke/lazy.nvim" }
 
   Config.spec:parse(specs)
-
-  -- override some lazy props
-  local lazy = Config.spec.plugins["lazy.nvim"]
-  if lazy then
-    lazy.lazy = true
-    lazy.dir = Config.me
-    lazy.config = function()
-      error("lazy config should not be called")
-    end
-    lazy._.loaded = {}
-  end
 
   -- add hererocks when enabled and needed
   for _, plugin in pairs(Config.spec.plugins) do
