@@ -248,20 +248,38 @@ end
 ---@return table<string, FetchData>
 function M.prefetch(opts)
   local out = {}
+  while true do
+    local store_paths = {}
+    local lazy_lua_specs = {}
 
-  opts = M.opts(opts, {
-    mode = "prefetch",
-    clear = false,
-    plugins = Config.plugins,
-  })
-  M.run({
-    pipeline = {
-      "prefetch.version",
-      { "prefetch.prefetch", out = out },
-    },
-  }, opts):wait()
+    local plugins_to_do = {}
+    for name, _ in pairs(Config.plugins) do
+      if not out[name] then
+        table.insert(plugins_to_do, name)
+      end
+    end
 
-  return out
+    local opts_with_default = M.opts(opts, {
+      mode = "prefetch",
+      clear = false,
+      plugins = plugins_to_do,
+    })
+    M.run({
+      pipeline = {
+        "prefetch.version",
+        { "prefetch.prefetch", out = out },
+        { "prefetch.download", fetchData = out, store_paths = store_paths },
+        { "prefetch.lazy_lua", store_paths = store_paths, specs = lazy_lua_specs },
+      },
+    }, opts_with_default):wait()
+
+    local lazy_lua_list = vim.tbl_values(lazy_lua_specs)
+    if #lazy_lua_list > 0 then
+      Config.spec:parse(lazy_lua_list)
+    else
+      return out
+    end
+  end
 end
 
 return M

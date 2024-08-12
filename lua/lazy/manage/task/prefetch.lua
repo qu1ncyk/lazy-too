@@ -1,6 +1,7 @@
 local Config = require("lazy.core.config")
 local Process = require("lazy.manage.process")
 local Semver = require("lazy.manage.semver")
+local Util = require("lazy.util")
 
 ---@type table<string, LazyTaskDef>
 local M = {}
@@ -125,7 +126,7 @@ M.prefetch = {
 
   ---Prefetch a single plugin and write the result to the `out` table.
   ---@async
-  ---@param opts { out: table<string, table> }
+  ---@param opts { out: table<string, FetchData> }
   run = function(self, opts)
     local plugin = self.plugin
     opts.out[plugin.name] = prefetch(plugin)
@@ -183,6 +184,66 @@ M.version = {
     local latest_version = Semver.last(matches)
     if latest_version then
       self.plugin.tag = latest_version.tag
+    end
+  end,
+}
+
+---Convert a Lua value to a Nix expression.
+---@return string
+local function convert_to_nix(val)
+  local t = type(val)
+  if t == "boolean" or t == "number" then
+    return tostring(val)
+  elseif t == "string" then
+    return '"'
+      .. string.gsub(val, [[\]], [[\\]]):gsub('"', [[\"]]):gsub("\t", [[\t]]):gsub("\n", [[\n]]):gsub("\r", [[\r]])
+      .. '"'
+  elseif t == "table" then
+    local out = ""
+    for k, v in pairs(val) do
+      out = out .. convert_to_nix(tostring(k)) .. "=" .. convert_to_nix(v) .. ";"
+    end
+    return "{" .. out .. "}"
+  else
+    return "null"
+  end
+end
+
+M.download = {
+  ---@param opts { fetchData: table<string, FetchData>, store_path: table<string, string> }
+  skip = function(plugin, opts)
+    return not opts.fetchData[plugin.name]
+  end,
+
+  ---Download the prefetched plugin and store the `/nix/store` path.
+  ---@async
+  ---@param opts { fetchData: table<string, FetchData>, store_paths: table<string, string> }
+  run = function(self, opts)
+    local fetchData = opts.fetchData[self.plugin.name]
+    local fetcher = fetchData.fetcher
+    local args = fetchData.args
+    local lines = Process.exec({
+      "nix-build",
+      "--no-out-link",
+      "--expr",
+      "(import <nixpkgs> {})." .. fetcher .. " " .. convert_to_nix(args),
+    })
+    local store_path = lines[#lines - 1]
+
+    assert(string.sub(store_path, 1, 11) == "/nix/store/")
+    opts.store_paths[self.plugin.name] = store_path
+  end,
+}
+
+M.lazy_lua = {
+  ---Get the contents of this plugin's `lazy.lua` and store them.
+  ---@param opts { store_paths: table<string, string>, specs: table<string, table> }
+  run = function(self, opts)
+    local dir = opts.store_paths[self.plugin.name] or self.plugin.dir
+    local file = dir .. "/lazy.lua"
+    if Util.file_exists(file) then
+      local spec = loadfile(file)()
+      opts.specs[self.plugin.name] = spec
     end
   end,
 }
