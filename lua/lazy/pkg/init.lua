@@ -29,6 +29,9 @@ M.dirty = false
 ---@type LazyPkg[]?
 M.cache = nil
 
+---@type string?
+M.code = nil
+
 function M.update()
   ---@type LazyPkgSource[]
   local sources = {}
@@ -73,8 +76,7 @@ function M.update()
   end)
   local U = require("lazy.util")
   local code = "return " .. U.dump(ret)
-  vim.fn.mkdir(vim.fn.fnamemodify(Config.options.pkg.cache, ":h"), "p")
-  U.write_file(Config.options.pkg.cache, code)
+  M.code = code
   M.dirty = false
   M.cache = nil
 end
@@ -82,9 +84,9 @@ end
 local function _load()
   Util.track("pkg")
   M.cache = nil
-  if vim.uv.fs_stat(Config.options.pkg.cache) then
+  if M.code then
     Util.try(function()
-      local chunk, err = loadfile(Config.options.pkg.cache)
+      local chunk, err = load(M.code)
       if not chunk then
         error(err)
       end
