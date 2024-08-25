@@ -277,6 +277,14 @@ function M.prefetch(opts)
     if #lazy_lua_list > 0 then
       Config.spec:parse(lazy_lua_list)
     else
+      for _, plugin in pairs(Config.plugins) do
+        for _, task in ipairs(plugin._.tasks) do
+          if task:has_errors() then
+            error("An error occurred while prefetching")
+          end
+        end
+      end
+
       return out
     end
   end
