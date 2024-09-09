@@ -45,7 +45,7 @@
       flatArgs = lib.strings.concatStringsSep " " args;
     in
       config.deps.writeShellScriptBin "nvim" ''
-        exec ${neovim}/bin/nvim ${flatArgs} $@
+        exec ${neovim}/bin/nvim ${flatArgs} "$@"
       '';
 in {
   imports = [
