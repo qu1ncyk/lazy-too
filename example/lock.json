@@ -1,0 +1,86 @@
+{
+  "plugins": {
+    "lazydev.nvim": {
+      "args": {
+        "hash": "sha256-D5gP2rVPYoWc8hslTrH7Z90cE7XEu+tfkD6FZzY/iPk=",
+        "owner": "folke",
+        "repo": "lazydev.nvim",
+        "rev": "491452cf1ca6f029e90ad0d0368848fac717c6d2"
+      },
+      "fetcher": "fetchFromGitHub"
+    },
+    "noice.nvim": {
+      "args": {
+        "hash": "sha256-9ivgP145phRzu6OD2nwqjgD8glCThnDjS31XHsjbVuM=",
+        "owner": "folke",
+        "repo": "noice.nvim",
+        "rev": "df448c649ef6bc5a6a633a44f2ad0ed8d4442499"
+      },
+      "fetcher": "fetchFromGitHub"
+    },
+    "none-ls.nvim": {
+      "args": {
+        "hash": "sha256-3QPk7Vqh0wLsH3F6qJ2hK1a97UDzlrACuWZH+RHLrPw=",
+        "owner": "nvimtools",
+        "repo": "none-ls.nvim",
+        "rev": "0e0a940477cc08fa7b1799384a1d668058ed4e61"
+      },
+      "fetcher": "fetchFromGitHub"
+    },
+    "nui.nvim": {
+      "args": {
+        "hash": "sha256-90Wq+vT361mTaGU/SvAezqJkX9HHmZ2GI2fKBDxPn04=",
+        "owner": "MunifTanjim",
+        "repo": "nui.nvim",
+        "rev": "b58e2bfda5cea347c9d58b7f11cf3012c7b3953f"
+      },
+      "fetcher": "fetchFromGitHub"
+    },
+    "nvim-lspconfig": {
+      "args": {
+        "hash": "sha256-uVAI+wvAZTV/lt9kZKGcBocreJ2cVpdMOnYU0Dy8eGU=",
+        "owner": "neovim",
+        "repo": "nvim-lspconfig",
+        "rev": "d3f169f436e1b44538bfe7e13b4721eec48dbc59"
+      },
+      "fetcher": "fetchFromGitHub"
+    },
+    "outline.nvim": {
+      "args": {
+        "hash": "sha256-zmq5ruNq+fKxii7yIDHC16GiV4LIUscXUmrP0MbkE+4=",
+        "owner": "~hedy",
+        "repo": "outline.nvim",
+        "rev": "41e7b88a2b0baa90619af5ec8af462fcb442db65"
+      },
+      "fetcher": "fetchFromSourcehut"
+    },
+    "plenary.nvim": {
+      "args": {
+        "hash": "sha256-bmmPekAvuBvLQmrnnX0n+FRBqfVxBsObhxIEkDGAla4=",
+        "owner": "nvim-lua",
+        "repo": "plenary.nvim",
+        "rev": "2d9b06177a975543726ce5c73fca176cedbffe9d"
+      },
+      "fetcher": "fetchFromGitHub"
+    },
+    "telescope.nvim": {
+      "args": {
+        "hash": "sha256-bhGlFAJIWJw/jrNWTJs2ywJkX/W+0EP5L4CX6M78dko=",
+        "owner": "nvim-telescope",
+        "repo": "telescope.nvim",
+        "rev": "dc6fc321a5ba076697cca89c9d7ea43153276d81"
+      },
+      "fetcher": "fetchFromGitHub"
+    },
+    "which-key.nvim": {
+      "args": {
+        "hash": "sha256-gc/WJJ1s4s+hh8Mx8MTDg8pGGNOXxgKqBMwudJtpO4Y=",
+        "owner": "folke",
+        "repo": "which-key.nvim",
+        "rev": "0539da005b98b02cf730c1d9da82b8e8edb1c2d2"
+      },
+      "fetcher": "fetchFromGitHub"
+    }
+  },
+  "invalidationHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+}
