@@ -62,4 +62,10 @@ require("lazy").setup({
   { "folke/which-key.nvim", opts = {}, version = "^2" },
   -- Use plugins that use `lazy.lua`
   { "folke/noice.nvim", opts = {} },
+  {
+    "virtual",
+    main = "virtual",
+    virtual = true,
+    opts = {},
+  },
 })
