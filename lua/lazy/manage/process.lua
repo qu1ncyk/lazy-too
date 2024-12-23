@@ -236,4 +236,22 @@ function M.exec(cmd, opts)
   return vim.split(proc.data, "\n"), proc.code
 end
 
+---Run a command and return only the `stdout` (discard `stderr`).
+---@param command string[] | string
+---@return string, number
+function M.exec_stdout(command)
+  local total_data = ""
+
+  ---@param data string
+  ---@param is_stderr? boolean
+  local function on_data(data, is_stderr)
+    if not is_stderr then
+      total_data = total_data .. data
+    end
+  end
+
+  local _, status = M.exec(command, { on_data = on_data, args = {} })
+  return total_data, status
+end
+
 return M

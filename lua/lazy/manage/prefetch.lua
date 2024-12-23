@@ -5,6 +5,10 @@ local Util = require("lazy.core.util")
 
 local M = {}
 
+---@class RockData
+---@field hash string The hash of `src_rock`
+---@field src_rock string URL to `.src.rock` file
+
 ---Convert a list of pairs to a dictionary-like table.
 ---@param pairs [string, string][]
 ---@return table<string, string>
@@ -41,7 +45,7 @@ local function luarocks_dependencies(rockspec_paths)
       assert(status == 0, "Could not make the source of rock " .. name .. " writable: " .. table.concat(output, "\n"))
 
       -- `luarocks make` uses the CWD as the source of the rock
-      output, status = Process.exec({ "luarocks", "--tree", tree, "make", path }, { cwd = src })
+      output, status = Process.exec({ "luarocks", "--tree", tree, "make" }, { cwd = src })
       assert(status == 0, "Could not build rock " .. name .. ":\n" .. table.concat(output, "\n"))
 
       -- Remove `src` so that it doesn't interfere with the next rock in the loop
@@ -65,6 +69,47 @@ local function luarocks_dependencies(rockspec_paths)
     error()
   end
   return pairs_to_dict(installed)
+end
+
+---@param base32 string
+local function base32_to_sri(base32)
+  local stdout, status = Process.exec_stdout({
+    "nix-hash",
+    "--type",
+    "sha256",
+    "--to-sri",
+    base32,
+  })
+  assert(status == 0, "Could not convert the hash to SRI")
+  return stdout:gsub("%s", "")
+end
+
+---Prefetch a `.src.rock` from LuaRocks.
+---@param name string
+---@param version string
+---@return RockData
+local function prefetch_src_rock(name, version)
+  local url = "https://luarocks.org/" .. name .. "-" .. version .. ".src.rock"
+  local stdout, status = Process.exec_stdout({ "nix-prefetch-url", url })
+  local base32 = stdout:gsub("%s", "")
+  assert(status == 0, "Could not prefetch " .. url)
+
+  return {
+    hash = base32_to_sri(base32),
+    src_rock = url,
+  }
+end
+
+---@param rocks table<string, string>
+local function prefetch_rocks(rocks)
+  local out = {}
+  for name, version in pairs(rocks) do
+    if not vim.list_contains({ "git", "scm", "dev" }, version:sub(1, 3)) then
+      print("Prefetching " .. name)
+      out[name] = prefetch_src_rock(name, version)
+    end
+  end
+  return out
 end
 
 ---Prefetch all plugins and return their fetch data.
@@ -118,7 +163,7 @@ function M.prefetch(opts)
       end
 
       local rocks = luarocks_dependencies(rockspecs)
-      vim.print(rocks)
+      vim.print(prefetch_rocks(rocks))
       return { git = out, rocks = rocks }
     end
   end

@@ -10,24 +10,6 @@ local M = {}
 ---@field fetcher string
 ---@field args table<string, string>
 
----Run a command and return only the `stdout` (discard `stderr`).
----@param command string[] | string
----@return string
-local function exec_stdout(command)
-  local total_data = ""
-
-  ---@param data string
-  ---@param is_stderr? boolean
-  local function on_data(data, is_stderr)
-    if not is_stderr then
-      total_data = total_data .. data
-    end
-  end
-
-  Process.exec(command, { on_data = on_data, args = {} })
-  return total_data
-end
-
 ---Translate a call to `fetchgit` to a more specialized fetcher like
 ---`fetchFromGitHub` or `fetchFromSourcehut`. Such specialized fetchers are
 ---more performant as they only download an archive of the selected commit
@@ -39,7 +21,7 @@ local function translate_fetchgit(fetch_data)
   end
 
   local command = { "nurl", "-p", fetch_data.args.url, fetch_data.args.rev }
-  local json = exec_stdout(command)
+  local json = Process.exec_stdout(command)
   if json == "" then
     return fetch_data
   end
@@ -70,7 +52,7 @@ local function prefetch_git(plugin)
     table.insert(command, plugin.tag)
   end
 
-  local json = exec_stdout(command)
+  local json = Process.exec_stdout(command)
   local parsed = vim.json.decode(json) --[[@as table<string, string>]]
 
   return translate_fetchgit({
