@@ -1,5 +1,5 @@
 local Config = require("lazy.core.config")
-local Manage
+local Prefetch
 local Plugin
 
 local M = {}
@@ -13,11 +13,11 @@ function M.write_lockfile(opts)
   end
 
   Config.setup(opts)
-  Manage = require("lazy.manage")
+  Prefetch = require("lazy.manage.prefetch")
   Plugin = require("lazy.core.plugin")
   Plugin.load()
 
-  local prefetched_plugins = Manage.prefetch()
+  local prefetched_plugins = Prefetch.prefetch()
   file:write(vim.json.encode(prefetched_plugins))
   file:close()
 end

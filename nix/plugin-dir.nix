@@ -37,6 +37,7 @@ in {
       stdenvNoCC
       jq
       ;
+    inherit (nixpkgs.luajitPackages) luarocks;
     # All possible outputs of `nurl` (minus builtins.fetchGit)
     fetchers = {
       inherit
@@ -88,6 +89,7 @@ in {
     plugins.script = config.deps.writeShellScript "prefetch plugins" ''
       export PATH=${config.deps.nix-prefetch-git}/bin:$PATH
       export PATH=${config.deps.nurl}/bin:$PATH
+      export PATH=${config.deps.luarocks}/bin:$PATH
       export LAZY_TOO=lock
       ${config.public.neovim-prefetch}/bin/nvim -l '${config.neovimConfigFile}'
 

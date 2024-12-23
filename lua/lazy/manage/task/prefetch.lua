@@ -248,4 +248,41 @@ M.lazy_lua = {
   end,
 }
 
+---Find a rockspec in the given dir.
+---Adaped from `pkg/rockspec.lua`.
+---@param dir string
+---@return string?
+local function find_rockspec(dir)
+  local rockspec_file ---@type string?
+  Util.ls(dir, function(path, name, t)
+    if t == "file" then
+      for _, suffix in ipairs({ "scm", "git", "dev" }) do
+        suffix = suffix .. "-1.rockspec"
+        if name:sub(-#suffix) == suffix then
+          rockspec_file = path
+          return false
+        end
+      end
+    end
+  end)
+  return rockspec_file
+end
+
+M.rockspec = {
+  ---@param opts { store_paths: table<string, string>, rockspecs: table<string, string>, lazy_lua_specs: table<string, table> }
+  skip = function (plugin, opts)
+    return opts.lazy_lua_specs[plugin.name] and true or false
+  end,
+
+  ---Get the contents of this plugin's `lazy.lua` and store them.
+  ---@param opts { store_paths: table<string, string>, rockspecs: table<string, string>, lazy_lua_specs: table<string, table> }
+  run = function(self, opts)
+    local dir = opts.store_paths[self.plugin.name] or self.plugin.dir
+    local file = find_rockspec(dir)
+    if file then
+      opts.rockspecs[self.plugin.name] = file
+    end
+  end,
+}
+
 return M
