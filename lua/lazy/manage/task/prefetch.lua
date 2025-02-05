@@ -10,6 +10,10 @@ local M = {}
 ---@field fetcher string
 ---@field args table<string, string>
 
+---@class RockData
+---@field hash string The hash of `src_rock`
+---@field src_rock string URL to `.src.rock` file
+
 ---Translate a call to `fetchgit` to a more specialized fetcher like
 ---`fetchFromGitHub` or `fetchFromSourcehut`. Such specialized fetchers are
 ---more performant as they only download an archive of the selected commit
@@ -252,7 +256,7 @@ end
 
 M.rockspec = {
   ---@param opts { store_paths: table<string, string>, rockspecs: table<string, string>, lazy_lua_specs: table<string, table> }
-  skip = function (plugin, opts)
+  skip = function(plugin, opts)
     return opts.lazy_lua_specs[plugin.name] and true or false
   end,
 
@@ -263,6 +267,124 @@ M.rockspec = {
     local file = find_rockspec(dir)
     if file then
       opts.rockspecs[self.plugin.name] = file
+    end
+  end,
+}
+
+---Convert a list of pairs to a dictionary-like table.
+---@param pairs [string, string][]
+---@return table<string, string>
+local function pairs_to_dict(pairs)
+  local out = {}
+  for _, pair in ipairs(pairs) do
+    out[pair[1]] = pair[2]
+  end
+  return out
+end
+
+M.rockspec_deps = {
+  ---@param opts { rockspecs: table<string, string> }
+  skip = function(plugin, opts)
+    return not opts.rockspecs[plugin.name]
+  end,
+
+  ---Get the dependency versions of the rockspec and store them.
+  ---@param opts { rockspecs: table<string, string>, rockspec_deps: table<string, table<string, string>> }
+  run = function(self, opts)
+    -- @todo Rewrite this function to get the dependency versions without
+    -- building/installing everything during lock phase. This works but it is slow.
+    local tmp = vim.uv.fs_mkdtemp(vim.uv.os_tmpdir() .. "/lazy-too.XXXXXX")
+    local tree = tmp and tmp .. "/tree"
+    local src = tmp and tmp .. "/src"
+    assert(tmp, "Could not create a temporary directory")
+
+    local ok = Util.try(function()
+      -- During the installation of a rock, luarocks can move a file from one place
+      -- to another. Since that file originates from the Nix store, it has no
+      -- write permission. Moving the file fails. The code below works around that
+      -- by copying the entire rock source to a temporary dir and by making it writable.
+      local name = self.plugin.name
+
+      local parent = vim.fs.dirname(opts.rockspecs[name])
+      local output, status = Process.exec({ "cp", "-r", parent, src })
+      assert(status == 0, "Could not copy the source of rock " .. name .. ": " .. table.concat(output, "\n"))
+      output, status = Process.exec({ "chmod", "-R", "u+w", src })
+      assert(status == 0, "Could not make the source of rock " .. name .. " writable: " .. table.concat(output, "\n"))
+
+      -- `luarocks make` uses the CWD as the source of the rock and
+      -- `$HOME/.cache/luarocks/https___luarocks.org/lockfile.lfs` as lockfile
+      output, status = Process.exec({ "luarocks", "--tree", tree, "make" }, { cwd = src, env = { HOME = tmp } })
+      assert(status == 0, "Could not build rock " .. name .. ":\n" .. table.concat(output, "\n"))
+
+      -- Remove `src` so that it doesn't interfere with the next rock in the loop
+      output, status = Process.exec({ "rm", "-r", src })
+      assert(status == 0, "Could not remove the copied source of rock " .. name .. ": " .. table.concat(output, "\n"))
+
+      local lines
+      lines, status = Process.exec({ "luarocks", "--tree", tree, "list", "--porcelain" })
+      assert(status == 0, "Could not get a list of the installed rocks")
+      table.remove(lines, #lines)
+
+      opts.rockspec_deps[name] = pairs_to_dict(vim.tbl_map(function(line)
+        local split = vim.split(line, "\t")
+        return vim.list_slice(split, 1, 2)
+      end, lines))
+      return true
+    end)
+
+    Process.exec({ "rm", "-r", tmp })
+    if not ok then
+      error(ok)
+    end
+  end,
+}
+
+---@param base32 string
+local function base32_to_sri(base32)
+  local stdout, status = Process.exec_stdout({
+    "nix-hash",
+    "--type",
+    "sha256",
+    "--to-sri",
+    base32,
+  })
+  assert(status == 0, "Could not convert the hash to SRI")
+  return stdout:gsub("%s", "")
+end
+
+---Prefetch a `.src.rock` from LuaRocks.
+---@param name string
+---@param version string
+---@return RockData
+local function prefetch_src_rock(name, version)
+  local url = "https://luarocks.org/" .. name .. "-" .. version .. ".src.rock"
+  local stdout, status = Process.exec_stdout({ "nix-prefetch-url", url })
+  local base32 = stdout:gsub("%s", "")
+  assert(status == 0, "Could not prefetch " .. url)
+
+  return {
+    hash = base32_to_sri(base32),
+    src_rock = url,
+  }
+end
+
+M.rockspec_download_deps = {
+  ---@param opts { rockspec_deps: table<string, table<string, string>> }
+  skip = function(plugin, opts)
+    return not opts.rockspec_deps[plugin.name]
+  end,
+
+  ---Download the source rocks of the dependencies and store their hash.
+  ---@param opts { rockspec_deps: table<string, table<string, string>>, rock_data: table<string, table<string, RockData>> }
+  run = function(self, opts)
+    local data = {}
+    for name, version in pairs(opts.rockspec_deps[self.plugin.name]) do
+      if not vim.list_contains({ "git", "scm", "dev" }, version:sub(1, 3)) then
+        data[name] = prefetch_src_rock(name, version)
+      end
+    end
+    if next(data) then
+      opts.rock_data[self.plugin.name] = data
     end
   end,
 }
