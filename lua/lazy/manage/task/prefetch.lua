@@ -1,5 +1,6 @@
 local Config = require("lazy.core.config")
 local Process = require("lazy.manage.process")
+local Rockspec = require("lazy.pkg.rockspec")
 local Semver = require("lazy.manage.semver")
 local Util = require("lazy.util")
 
@@ -11,8 +12,19 @@ local M = {}
 ---@field args table<string, string>
 
 ---@class RockData
----@field hash string The hash of `src_rock`
----@field src_rock string URL to `.src.rock` file
+---@field hash string The hash of either `src_rock` or `rockspec`
+---@field src_rock string? URL to `.src.rock` file
+---@field rockspec string? URL to `.rockspec` file
+---@field src FetchData? Source used in `.rockspec`
+
+---@class GitRepoData
+---@field url string?
+---@field branch? string
+---@field tag? string
+---@field commit? string
+---@field version? string|boolean
+---@field pin? boolean
+---@field submodules? boolean Defaults to true
 
 ---Translate a call to `fetchgit` to a more specialized fetcher like
 ---`fetchFromGitHub` or `fetchFromSourcehut`. Such specialized fetchers are
@@ -37,23 +49,22 @@ end
 ---Fetch the metadata and hash of the repo that hosts the plugin. This function
 ---is used if `prefetch` using `nurl` fails, for example due to
 ---`Error: fetchgit does not support fetching the latest revision`.
----@param plugin LazyPlugin
+---@param repo GitRepoData | LazyPlugin
 ---@return FetchData
-local function prefetch_git(plugin)
-  local command = { "nix-prefetch-git", plugin.url }
-  if plugin.branch then
-    vim.list_extend(command, { "--branch-name", plugin.branch })
+local function prefetch_git(repo)
+  local command = { "nix-prefetch-git", repo.url }
+  if repo.branch then
+    vim.list_extend(command, { "--branch-name", repo.branch })
   end
 
-  if plugin.submodules then
+  if repo.submodules then
     table.insert(command, "--fetch-submodules")
   end
 
-  ---@todo support semantic versioning
-  if plugin.commit then
-    table.insert(command, plugin.commit)
-  elseif plugin.tag then
-    table.insert(command, plugin.tag)
+  if repo.commit then
+    table.insert(command, repo.commit)
+  elseif repo.tag then
+    table.insert(command, repo.tag)
   end
 
   local json = Process.exec_stdout(command)
@@ -70,28 +81,28 @@ local function prefetch_git(plugin)
 end
 
 ---Fetch the metadata and hash of the repo that hosts the plugin.
----@param plugin LazyPlugin
+---@param repo GitRepoData | LazyPlugin
 ---@return FetchData
-local function prefetch(plugin)
-  local command = { "nurl", "-j", plugin.url }
-  if plugin.branch then
+local function prefetch(repo)
+  local command = { "nurl", "-j", repo.url }
+  if repo.branch then
     -- Not all fetchers support fetching the latest commit from a specific
     -- branch
-    return prefetch_git(plugin)
+    return prefetch_git(repo)
   end
 
-  if plugin.submodules then
+  if repo.submodules then
     table.insert(command, "--submodules=true")
   else
     table.insert(command, "--submodules=false")
   end
 
-  if plugin.commit then
-    table.insert(command, plugin.commit)
-  elseif plugin.tag or plugin.version then
+  if repo.commit then
+    table.insert(command, repo.commit)
+  elseif repo.tag or repo.version then
     -- Tags don't get translated to commit hashes by nurl,
     -- which makes them not reproducable
-    return prefetch_git(plugin)
+    return prefetch_git(repo)
   end
 
   local lines = Process.exec(command)
@@ -99,7 +110,7 @@ local function prefetch(plugin)
   local success, parsed = pcall(vim.json.decode, json)
 
   if not success then
-    return prefetch_git(plugin)
+    return prefetch_git(repo)
   end
   return parsed
 end
@@ -313,7 +324,16 @@ M.rockspec_deps = {
 
       -- `luarocks make` uses the CWD as the source of the rock and
       -- `$HOME/.cache/luarocks/https___luarocks.org/lockfile.lfs` as lockfile
-      output, status = Process.exec({ "luarocks", "--tree", tree, "make" }, { cwd = src, env = { HOME = tmp } })
+      output, status = Process.exec({
+        "luarocks",
+        "--tree",
+        tree,
+        "make",
+        "--deps-only",
+      }, {
+        cwd = src,
+        env = { HOME = tmp },
+      })
       assert(status == 0, "Could not build rock " .. name .. ":\n" .. table.concat(output, "\n"))
 
       -- Remove `src` so that it doesn't interfere with the next rock in the loop
@@ -368,6 +388,58 @@ local function prefetch_src_rock(name, version)
   }
 end
 
+---Rewrite a URL from the [LuaRocks protocol syntax](https://github.com/luarocks/luarocks/wiki/Rockspec-format#build-rules)
+---to a format that git understands.
+---@param url string
+local function rewrite_git_url(url)
+  -- Workaround by LuaRocks to keep GitHub `git://` urls working after GitHub
+  -- dropped support: https://github.com/luarocks/luarocks/blob/1ada2ea4bbd94ac0c58e3e2cc918194140090a75/src/luarocks/fetch.tl#L582C4-L586C7
+  if url:match("^git://github%.com/") or url:match("^git://www%.github%.com/") then
+    return url:gsub("^git://", "https://")
+  elseif url:match("^git%+%a+://") then
+    return url:sub(5)
+  elseif url:match("^git://") then
+    return url
+  else
+    error("Unsupported source URL: " .. url)
+  end
+end
+
+---Prefetch a `.rockspec` from LuaRocks.
+---@param name string
+---@param version string
+---@return RockData
+local function prefetch_rockspec(name, version)
+  local url = "https://luarocks.org/" .. name .. "-" .. version .. ".rockspec"
+  local stdout, status = Process.exec_stdout({ "nix-prefetch-url", url })
+
+  local base32 = stdout:gsub("%s", "")
+  assert(status == 0, "Could not prefetch " .. url)
+  local hash = base32_to_sri(base32)
+
+  local lines = Process.exec({
+    "nix-build",
+    "--no-out-link",
+    "--expr",
+    "(import <nixpkgs> {}).fetchurl " .. convert_to_nix({ url = url, hash = hash }),
+  })
+  local store_path = lines[#lines - 1]
+  assert(string.sub(store_path, 1, 11) == "/nix/store/")
+
+  local rockspec = Rockspec.rockspec(store_path)
+  assert(rockspec and rockspec.source.url)
+
+  return {
+    hash = hash,
+    rockspec = url,
+    src = prefetch({
+      url = rewrite_git_url(rockspec.source.url),
+      tag = rockspec.source.tag,
+      branch = rockspec.source.branch,
+    }),
+  }
+end
+
 M.rockspec_download_deps = {
   ---@param opts { rockspec_deps: table<string, table<string, string>> }
   skip = function(plugin, opts)
@@ -381,9 +453,11 @@ M.rockspec_download_deps = {
     for name, version in pairs(opts.rockspec_deps[self.plugin.name]) do
       if not vim.list_contains({ "git", "scm", "dev" }, version:sub(1, 3)) then
         data[name] = prefetch_src_rock(name, version)
+      else
+        data[name] = prefetch_rockspec(name, version)
       end
     end
-    if next(data) then
+    if not vim.tbl_isempty(data) then
       opts.rock_data[self.plugin.name] = data
     end
   end,

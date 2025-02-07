@@ -59,6 +59,7 @@ function M.prefetch(opts)
         end
       end
 
+      vim.print(rockspec_deps)
       return { git = out, rocks = rock_data }
     end
   end
