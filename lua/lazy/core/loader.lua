@@ -122,7 +122,7 @@ function M.startup()
   -- 2. load start plugin
   Util.track({ start = "start" })
   for _, plugin in ipairs(M.get_start_plugins()) do
-    if plugin.build then
+    if plugin.build and plugin.build ~= "rockspec" then
       print("The `build` property is not supported in Lazy-too (used in " .. plugin.name .. ")")
     end
     -- plugin may be loaded by another plugin in the meantime
