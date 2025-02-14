@@ -18,7 +18,12 @@
 
   # Runtime data for from-nix.lua
   lazyData = {
-    lazy = {root = config.public.pluginDir;} // configRootPathData;
+    lazy =
+      {
+        root = config.public.pluginDir;
+        rocks = config.public.rockRoot;
+      }
+      // configRootPathData;
   };
 
   # The entry in from-nix.lua that contains the config root directory
