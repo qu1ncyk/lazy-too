@@ -104,11 +104,14 @@
       for plugin in $(ls "$rootPluginDir"); do
         plugindir="$rootPluginDir/$plugin"
         if [ -n "$(echo -n "$plugindir"/*.rockspec)" ]; then
+          for dependency in "$rocksServers/$plugin"/*.src.rock; do
+            luarocks install "$dependency" --tree "$out/$plugin" --deps-mode none --force-fast
+          done
           # LuaRocks needs source of the plugin rock to have writable permissions
           cp -rL "$plugindir" plugin
           chmod -R +w plugin
           pushd plugin
-          luarocks make --only-server "$rocksServers/$plugin" --tree "$out/$plugin"
+          luarocks make --tree "$out/$plugin" --deps-mode none --force-fast
           popd
           rm -r plugin
         fi
