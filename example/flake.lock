@@ -79,11 +79,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1739560882,
-        "narHash": "sha256-jYKDjsBUy9U4hYdc6C7jc2Nu4ItKfYOImB05VxftHNA=",
+        "lastModified": 1739563495,
+        "narHash": "sha256-RjBkdT3u5XEuUG4IjFijiDLNil/bTp/3r/IRmV7Uv24=",
         "owner": "qu1ncyk",
         "repo": "lazy-too",
-        "rev": "23d6370e9b8d0ee5778183fce1f83ba090e0d6e2",
+        "rev": "b592e72942cd5a7c31d07b3f580d22ecd15ee9e1",
         "type": "github"
       },
       "original": {
