@@ -2,7 +2,6 @@
 local from_nix = require("lazy.from-nix")
 
 require("lazy").setup({
-  { "nvim-lua/plenary.nvim", lazy = true },
   {
     -- Install Telescope from GitHub
     "nvim-telescope/telescope.nvim",
@@ -68,4 +67,6 @@ require("lazy").setup({
     virtual = true,
     opts = {},
   },
+  -- Use plugins with LuaRocks dependencies
+  { "nvim-neorg/neorg", opts = {}, version = "*" },
 })

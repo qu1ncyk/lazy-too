@@ -40,6 +40,7 @@
                     vimdoc
                     nix
                     lua
+                    norg
                   ];
                 };
                 markdown_preview = pkgs.vimPlugins.markdown-preview-nvim;

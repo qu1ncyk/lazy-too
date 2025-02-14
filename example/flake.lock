@@ -79,11 +79,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1734554211,
-        "narHash": "sha256-u3gzLONVL48uV4iMKPOVdfmEjackAXHglh/h82s9+2M=",
+        "lastModified": 1739560882,
+        "narHash": "sha256-jYKDjsBUy9U4hYdc6C7jc2Nu4ItKfYOImB05VxftHNA=",
         "owner": "qu1ncyk",
         "repo": "lazy-too",
-        "rev": "b75077f238f77dacb089f68afd7b7abf31f32621",
+        "rev": "23d6370e9b8d0ee5778183fce1f83ba090e0d6e2",
         "type": "github"
       },
       "original": {
@@ -126,11 +126,11 @@
     },
     "nixpkgs_3": {
       "locked": {
-        "lastModified": 1734424634,
-        "narHash": "sha256-cHar1vqHOOyC7f1+tVycPoWTfKIaqkoe1Q6TnKzuti4=",
+        "lastModified": 1739446958,
+        "narHash": "sha256-+/bYK3DbPxMIvSL4zArkMX0LQvS7rzBKXnDXLfKyRVc=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "d3c42f187194c26d9f0309a8ecc469d6c878ce33",
+        "rev": "2ff53fe64443980e139eaa286017f53f88336dd0",
         "type": "github"
       },
       "original": {
