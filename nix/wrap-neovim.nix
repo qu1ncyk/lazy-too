@@ -104,7 +104,12 @@ in {
         packPath =
           [
             (config.public.lazyPath {
-              lazy = {root = emptyDerivation;} // configRootPathData;
+              lazy =
+                {
+                  root = emptyDerivation;
+                  rocks = emptyDerivation;
+                }
+                // configRootPathData;
             })
           ]
           ++ configRootList;
