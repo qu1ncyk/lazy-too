@@ -1,6 +1,4 @@
 --# selene:allow(incorrect_standard_library_use)
-local Community = require("lazy.community")
-
 local Config = require("lazy.core.config")
 local Health = require("lazy.health")
 local Util = require("lazy.util")
@@ -264,14 +262,6 @@ end
 ---@param plugin LazyPlugin
 ---@return LazyPkgSpec?
 function M.get(plugin)
-  if Community.get_spec(plugin.name) then
-    return {
-      file = "community",
-      source = "lazy",
-      spec = Community.get_spec(plugin.name),
-    }
-  end
-
   local rockspec_file = M.find_rockspec(plugin)
   local rockspec = rockspec_file and M.rockspec(rockspec_file)
   if not rockspec then
@@ -279,51 +269,6 @@ function M.get(plugin)
   end
 
   local has_lua = not not vim.uv.fs_stat(plugin.dir .. "/lua")
-
-  ---@type LazyPluginSpec
-  local specs = {}
-
-  ---@param dep string
-  local rocks = vim.tbl_filter(function(dep)
-    local name = dep:gsub("%s.*", "")
-    local url = Community.get_url(name)
-    local spec = Community.get_spec(name)
-
-    if spec then
-      -- community spec
-      table.insert(specs, spec)
-      return false
-    elseif url then
-      -- Neovim plugin rock
-      table.insert(specs, { url })
-      return false
-    end
-    return not vim.tbl_contains(M.skip, name)
-  end, rockspec.dependencies or {})
-
-  local use =
-    -- package without a /lua directory
-    not has_lua
-    -- has dependencies that are not skipped, 
-    -- not in community specs, 
-    -- and don't have a rockspec mapping
-    or #rocks > 0
-    -- has a complex build process
-    or not M.is_simple_build(rockspec)
-
-  if not use then
-    -- community specs only
-    return #specs > 0
-        and {
-          file = vim.fn.fnamemodify(rockspec_file, ":t"),
-          spec = {
-            plugin.name,
-            specs = specs,
-            build = false,
-          },
-        }
-      or nil
-  end
 
   local lazy = nil
   if not has_lua then
