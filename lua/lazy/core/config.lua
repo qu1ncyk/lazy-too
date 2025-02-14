@@ -59,7 +59,7 @@ M.defaults = {
   },
   rocks = {
     enabled = true,
-    root = vim.fn.stdpath("data") .. "/lazy-rocks",
+    root = fromNix.lazy.rocks,
     server = "https://nvim-neorocks.github.io/rocks-binaries/",
     -- use hererocks to install luarocks?
     -- set to `nil` to use hererocks when luarocks is not found
