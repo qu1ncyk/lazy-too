@@ -133,7 +133,7 @@ in {
       jq
       fetchurl
       ;
-    inherit (nixpkgs.luajitPackages) luarocks;
+    inherit (nixpkgs.lua51Packages) luarocks;
     # All possible outputs of `nurl` (minus builtins.fetchGit)
     fetchers = {
       inherit
