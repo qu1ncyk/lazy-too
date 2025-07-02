@@ -5,6 +5,7 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     lazy-too.url = "github:qu1ncyk/lazy-too";
+    neorg-overlay.url = "github:nvim-neorg/nixpkgs-neorg-overlay";
   };
 
   outputs = {
@@ -12,10 +13,11 @@
     nixpkgs,
     flake-utils,
     lazy-too,
+    neorg-overlay,
   }:
     flake-utils.lib.eachDefaultSystem (
       system: let
-        pkgs = nixpkgs.legacyPackages.${system};
+        pkgs = nixpkgs.legacyPackages.${system}.extend neorg-overlay.overlays.default;
       in {
         packages = rec {
           default = lazy-too.packages.${system}.buildNeovim {
@@ -30,6 +32,8 @@
               projectRootFile = "flake.nix";
               package = ./.;
             };
+
+            neovim = pkgs.neovim-unwrapped;
 
             passedToLua = {
               plugins = {
