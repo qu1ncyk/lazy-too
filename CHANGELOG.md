@@ -1,5 +1,58 @@
 # Changelog
 
+## [11.17.5](https://github.com/folke/lazy.nvim/compare/v11.17.4...v11.17.5) (2025-11-06)
+
+
+### Bug Fixes
+
+* **luarocks:** proper parsing of dependency name. Closes [#2086](https://github.com/folke/lazy.nvim/issues/2086) ([5c09e6f](https://github.com/folke/lazy.nvim/commit/5c09e6fe71f4bb930eeffe24d45762fa3ffada4e))
+
+## [11.17.4](https://github.com/folke/lazy.nvim/compare/v11.17.3...v11.17.4) (2025-11-04)
+
+
+### Bug Fixes
+
+* **plugin:** proper error message when a plugin spec returns more than one value. ([dfdc85e](https://github.com/folke/lazy.nvim/commit/dfdc85e18930a3f1643e83c8ed0c514ca85e49fa))
+
+## [11.17.3](https://github.com/folke/lazy.nvim/compare/v11.17.2...v11.17.3) (2025-10-28)
+
+
+### Bug Fixes
+
+* **luarocks:** update to lumen-oss for binaries. Closes [#2060](https://github.com/folke/lazy.nvim/issues/2060). Closes [#2059](https://github.com/folke/lazy.nvim/issues/2059) ([e31789c](https://github.com/folke/lazy.nvim/commit/e31789c675e2f591a20fc894b6713398eaa5dddd))
+
+## [11.17.2](https://github.com/folke/lazy.nvim/compare/v11.17.1...v11.17.2) (2025-10-23)
+
+
+### Bug Fixes
+
+* **luarocks:** add plugin to lua path if it was already loaded before we know its a luarock ([147f5a3](https://github.com/folke/lazy.nvim/commit/147f5a3f55b5491bbc77a55ce846ef5eb575fa42))
+* **plugin:** check that path is actually in root dir. Closes [#2075](https://github.com/folke/lazy.nvim/issues/2075) ([16e5271](https://github.com/folke/lazy.nvim/commit/16e52715b70b4d0fc6af3563ccc0ed9df82ae23e))
+* **stats:** better support for different `time_t` sizes. See [#2049](https://github.com/folke/lazy.nvim/issues/2049) ([1ea3c40](https://github.com/folke/lazy.nvim/commit/1ea3c4085785f460fb0e46d2fe1ee895f5f9e7c1))
+
+## [11.17.1](https://github.com/folke/lazy.nvim/compare/v11.17.0...v11.17.1) (2025-02-25)
+
+
+### Bug Fixes
+
+* **bootstrap:** support for older Neovim versions ([1c9ba37](https://github.com/folke/lazy.nvim/commit/1c9ba3704564a2e34a22191bb89678680ffeb245))
+* **meta:** rebuild dirty right after disable. See [#1889](https://github.com/folke/lazy.nvim/issues/1889) ([d51cf69](https://github.com/folke/lazy.nvim/commit/d51cf6978321d659e68a8bc38ee806bd2517a196))
+
+## [11.17.0](https://github.com/folke/lazy.nvim/compare/v11.16.2...v11.17.0) (2025-02-24)
+
+
+### Features
+
+* **config,render:** allow customizing the debug icon ([#1863](https://github.com/folke/lazy.nvim/issues/1863)) ([a9c660d](https://github.com/folke/lazy.nvim/commit/a9c660d6ef1b396869d3d951760aa7a3dbfe575f))
+* **util:** pass lang to `vim.notify` so that snacks notifier can render the ft. Closes [#1919](https://github.com/folke/lazy.nvim/issues/1919) ([c6a57a3](https://github.com/folke/lazy.nvim/commit/c6a57a3534d3494bcc5ff9b0586e141bdb0280eb))
+
+
+### Bug Fixes
+
+* **config:** add missing space on the default debug icon ([#1879](https://github.com/folke/lazy.nvim/issues/1879)) ([4df5c4d](https://github.com/folke/lazy.nvim/commit/4df5c4d65a3bbf801edd9ec55fb1ae55cfa72dd0))
+* **meta:** disable top-level specs before the rest. Closes [#1889](https://github.com/folke/lazy.nvim/issues/1889) ([f81a3fb](https://github.com/folke/lazy.nvim/commit/f81a3fb7feaf460ec7c8c983682b4a693b18fdd4))
+* **ui:** do not show virt_lines for messages ([#1904](https://github.com/folke/lazy.nvim/issues/1904)) ([f15a939](https://github.com/folke/lazy.nvim/commit/f15a93907ddad3d9139aea465ae18336d87f5ce6))
+
 ## [11.16.2](https://github.com/folke/lazy.nvim/compare/v11.16.1...v11.16.2) (2024-12-13)
 
 

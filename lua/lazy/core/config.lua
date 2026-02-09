@@ -60,7 +60,7 @@ M.defaults = {
   rocks = {
     enabled = true,
     root = fromNix.lazy.rocks,
-    server = "https://nvim-neorocks.github.io/rocks-binaries/",
+    server = "https://lumen-oss.github.io/rocks-binaries/",
     -- use hererocks to install luarocks?
     -- set to `nil` to use hererocks when luarocks is not found
     -- set to `true` to always use hererocks
@@ -97,6 +97,7 @@ M.defaults = {
     icons = {
       cmd = " ",
       config = "",
+      debug = "● ",
       event = " ",
       favorite = " ",
       ft = " ",
@@ -242,7 +243,7 @@ function M.hererocks()
   return M.options.rocks.hererocks
 end
 
-M.version = "11.16.2" -- x-release-please-version
+M.version = "11.17.5" -- x-release-please-version
 
 M.ns = vim.api.nvim_create_namespace("lazy")
 
