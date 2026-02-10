@@ -128,7 +128,7 @@ in {
       nurl
       runCommand
       symlinkJoin
-      writeShellScript
+      writeShellApplication
       stdenvNoCC
       jq
       fetchurl
@@ -180,16 +180,27 @@ in {
   };
 
   lock.fields = {
-    plugins.script = config.deps.writeShellScript "prefetch plugins" ''
-      export PATH=${config.deps.nix-prefetch-git}/bin:$PATH
-      export PATH=${config.deps.nurl}/bin:$PATH
-      export PATH=${config.deps.luarocks}/bin:$PATH
-      export LAZY_TOO=lock
-      ${config.public.neovim-prefetch}/bin/nvim -l '${config.neovimConfigFile}'
+    plugins.script = let
+      prefetcher = config.deps.writeShellApplication {
+        name = "prefetch-plugins";
+        runtimeInputs = with config.deps; [
+          nix-prefetch-git
+          nurl
+          luarocks
+          jq
+          config.public.neovim-prefetch
+        ];
+        checkPhase = false;
 
-      # Sort the keys to be more Git-friendly
-      ${config.deps.jq}/bin/jq --sort-keys . $out > tmp
-      mv tmp $out
-    '';
+        text = ''
+          export LAZY_TOO=lock
+          nvim -l '${config.neovimConfigFile}'
+
+          # Sort the keys to be more Git-friendly
+          jq --sort-keys . $out > tmp
+          mv tmp $out
+        '';
+      };
+    in "${prefetcher}/bin/prefetch-plugins";
   };
 }
