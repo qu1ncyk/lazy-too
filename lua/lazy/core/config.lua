@@ -1,12 +1,12 @@
 local Util = require("lazy.core.util")
-local fromNix = require("lazy.from-nix")
+local from_nix = require("lazy.from-nix")
 
 ---@class LazyCoreConfig
 local M = {}
 
 ---@class LazyConfig
 M.defaults = {
-  root = fromNix.lazy.root,
+  root = from_nix.lazy.root,
   defaults = {
     -- Set this to `true` to have all your plugins lazy-loaded by default.
     -- Only do this if you know what you are doing, as it can lead to unexpected behavior.
@@ -59,7 +59,7 @@ M.defaults = {
   },
   rocks = {
     enabled = true,
-    root = fromNix.lazy.rocks,
+    root = from_nix.lazy.rocks,
     server = "https://lumen-oss.github.io/rocks-binaries/",
     -- use hererocks to install luarocks?
     -- set to `nil` to use hererocks when luarocks is not found
@@ -310,9 +310,9 @@ function M.setup(opts)
       vim.env.VIMRUNTIME,
       lib,
     }
-    if fromNix.lazy.config_root then
-      vim.opt.rtp:prepend(fromNix.lazy.config_root)
-      vim.opt.rtp:append(fromNix.lazy.config_root .. "/after")
+    if from_nix.lazy.config_root then
+      vim.opt.rtp:prepend(from_nix.lazy.config_root)
+      vim.opt.rtp:append(from_nix.lazy.config_root .. "/after")
     end
   end
   for _, path in ipairs(M.options.performance.rtp.paths) do
