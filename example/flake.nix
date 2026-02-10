@@ -17,6 +17,8 @@
   }:
     flake-utils.lib.eachDefaultSystem (
       system: let
+        # The Neorg overlay adds the Neorg Neovim plugin and Norg treesitter parser.
+        # If you don't use Neorg, you can remove the overlay.
         pkgs = nixpkgs.legacyPackages.${system}.extend neorg-overlay.overlays.default;
       in {
         packages = rec {
@@ -40,11 +42,21 @@
                 treesitter = pkgs.symlinkJoin {
                   name = "Treesitter and parsers";
                   paths = with pkgs.vimPlugins.nvim-treesitter-parsers; [
-                    pkgs.vimPlugins.nvim-treesitter
+                    # nvim-treesitter normally copies queries from `runtime/queries`
+                    # to `~/.local/share/nvim/site/queries`
+                    # https://github.com/nvim-treesitter/nvim-treesitter/blob/4967fa48b0fe7a7f92cee546c76bb4bb61bb14d5/lua/nvim-treesitter/install.lua#L412
+                    (pkgs.vimPlugins.nvim-treesitter.overrideAttrs {
+                      fixupPhase = ''
+                        # `runtime` is not actually part of the runtimepath,
+                        # but the plugin root dir is
+                        mv $out/runtime/queries $out
+                        rm runtime -r
+                      '';
+                    })
+                    vim
                     vimdoc
                     nix
                     lua
-                    norg
                   ];
                 };
                 markdown_preview = pkgs.vimPlugins.markdown-preview-nvim;

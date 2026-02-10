@@ -12,12 +12,6 @@ require("lazy").setup({
     -- Install Treesitter with parsers from Nix (see `flake.nix`)
     name = "nvim-treesitter",
     dir = from_nix.plugins.treesitter,
-    -- You could even move `opts` to Nix and use `from_nix` here
-    opts = {
-      highlight = {
-        enable = true,
-      },
-    },
     main = "nvim-treesitter.configs",
   },
   {
@@ -68,5 +62,14 @@ require("lazy").setup({
     opts = {},
   },
   -- Use plugins with LuaRocks dependencies
+  -- (note: you may want to use the plugin from the official Nix overlay
+  -- instead of from their repo)
   { "nvim-neorg/neorg", opts = {}, version = "*" },
+})
+
+-- Optional: auto enable treesitter highlighting
+vim.api.nvim_create_autocmd("FileType", {
+  callback = function()
+    pcall(vim.treesitter.start)
+  end,
 })
